@@ -48,40 +48,12 @@ public:
     void setRoot(const std::string& htdocPath);
     std::string getRoot() const;
     
-    // Gets the number of threads currently in the threadpool
-    int threadCount() const;
-    // Adds a thread to the threadpool
-    //void addThread();
 private:
-    // The accept loop
-    //void operator()();
-    
-    friend class http::HttpServerThread;
-    friend class http::HttpWorkerThread;
-    
-    // Server thread access functions
-    int getServerSocket();
-    sockaddr* getAddress();
-    timeval* getTimeout();
-    std::set<boost::shared_ptr<boost::thread> >& getThreadpool();
-    // Server worker thread access functions
-    std::queue<int>& getQueue();
-    boost::shared_mutex & getQueueMutex();
     
     bool isActive;
     mutable boost::shared_mutex stateMutex;
     
-    int serverSocket;
     boost::scoped_ptr<boost::thread> serverThread;
-    timeval timeout;
-    sockaddr_in address;
-    ushort port;
-    std::string root;
-    
-    std::queue<int> queue;
-    boost::shared_mutex  queueMutex;
-    std::set<boost::shared_ptr<boost::thread> > threadpool;
-    uint maxThreadCount;
 };
 
 }

@@ -1,0 +1,23 @@
+Planning and design for flo, the simple web server for CS 360.
+
+Server architecture
+ Use boost::thread for connections
+ Use boost::mutex to guard the std::queue
+ Use std::queue to queue up the sockets to serve
+
+
+Pseudocode
+ Setup threadpool
+  Each thread is created with a HttpServer object
+   HttpServer is a callable object, which, when called reads the queue, and initiates new connections when needed.
+   HttpServer() {
+    while (!quit) {
+     int sock;
+     //thread-queue.get() returns -1 on empty
+     // This way, we don't need to do a separate mutex out here to make sure nothing changes between empty()? and get()
+     while ((sock = thread-queue.get()) == -1) {
+      usleep(15); // Some number based on the number of threads to run.
+     }
+     // read from sock, process thread
+    }
+   }

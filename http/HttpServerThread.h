@@ -28,8 +28,16 @@ public:
     // along the wire. Hopefully there aren't problems with std::string &
     // loading jpg or gif content in...but this would make giving out the
     // Content-Length really easy.
+    
+    // Gets the number of threads currently in the threadpool
+    int threadCount() const;
 private:
     HttpServer* server;
+    int serverSocket;
+    timeval timeout;
+    sockaddr_in address;z
+    std::set<boost::shared_ptr<boost::thread> > threadpool;
+    uint maxThreadCount;
 };
 
 }

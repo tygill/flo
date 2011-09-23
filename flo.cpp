@@ -10,8 +10,13 @@
 #include <string>
 #include <boost/shared_ptr.hpp>
 
-#include "http/HttpRequest.h"
+#include "http/HttpServer.h"
 
-void main(int argc, char* argv[]) {
-    
+int main(int argc, char* argv[]) {
+    http::HttpServer server("./", 8888, 5);
+    server.start();
+    while (true) {
+        sleep(1);
+    }
+    return 0;
 }
