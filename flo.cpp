@@ -13,10 +13,11 @@
 #include "http/HttpServer.h"
 
 int main(int argc, char* argv[]) {
-    http::HttpServer server("./", 8888, 5);
-    server.start();
-    while (true) {
-        sleep(1);
+    http::HttpServer server("www", 8888);
+    if (server.start()) {
+        while (true) {
+            sleep(1);
+        }
     }
     return 0;
 }

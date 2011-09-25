@@ -1,7 +1,16 @@
 ﻿#ifndef HTTPSERVERTHREAD_H
 #define HTTPSERVERTHREAD_H
 
-#include "http/HttpServer.h"
+#include <queue>
+#include <set>
+#include <boost/thread.hpp>
+#include <boost/weak_ptr.hpp>
+
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <sys/time.h>
+#include <netinet/in.h>
+#include <netdb.h>
 
 namespace http {
 
@@ -10,7 +19,10 @@ class HttpServer;
 class HttpServerThread {
 public:
     HttpServerThread(HttpServer* serv);
+    HttpServerThread(const HttpServerThread& other);
     ~HttpServerThread();
+    void initialize();
+    
     void operator()();
     // Checks server->active() to decide whether or not to stay alive.
     // Things are locked in this manner:
@@ -29,15 +41,30 @@ public:
     // loading jpg or gif content in...but this would make giving out the
     // Content-Length really easy.
     
+    bool active() const;
+    
+    bool valid() const;
+    
+    std::string getRoot() const;
     // Gets the number of threads currently in the threadpool
     int threadCount() const;
+    
+    std::queue<int>& getQueue();
+    boost::shared_mutex& getQueueMutex();
 private:
     HttpServer* server;
     int serverSocket;
     timeval timeout;
-    sockaddr_in address;z
+    sockaddr_in address;
+    
+    std::string root;
+    
+    std::queue<int> queue;
+    boost::shared_mutex queueMutex;
     std::set<boost::shared_ptr<boost::thread> > threadpool;
     uint maxThreadCount;
+    
+    bool isValid;
 };
 
 }

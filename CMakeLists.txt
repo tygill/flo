@@ -32,4 +32,6 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -Wall")
 add_executable(flo ${webserver_cpp})
 target_link_libraries(flo ${Boost_LIBRARIES})
 
+file(COPY "${PROJECT_SOURCE_DIR}/www" DESTINATION "${PROJECT_BINARY_DIR}")
+
 # install (TARGETS download DESTINATION bin)

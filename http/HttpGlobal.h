@@ -5,6 +5,8 @@
 #include <cstdlib>
 
 #define SOCKET_ERROR -1
+#define MAX_THREAD_COUNT 25
+#define THREAD_TIMEOUT 5
 
 namespace http {
 
@@ -22,6 +24,10 @@ enum HttpRequestType {
 };
 
 std::string requestTypeToString(HttpRequestType type);
+
+std::string statusCodeToString(int status);
+
+std::string mimeType(const std::string& extension);
 
 std::string trim(const std::string& string);
 

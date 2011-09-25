@@ -2,11 +2,7 @@
 #define HTTPSERVER_H
 
 #include <string>
-#include <queue>
-#include <set>
 #include <boost/thread.hpp>
-#include <boost/scoped_ptr.hpp>
-#include <boost/shared_ptr.hpp>
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -16,8 +12,13 @@
 
 namespace http {
 
-class HttpServerThread;
-class HttpWorkerThread;
+class HttpServer;
+
+}
+
+#include "http/HttpServerThread.h"
+
+namespace http {
 
 // The HttpServer will be designed to run in a separate thread from main, and will
 // spawn worker threads as needed. This way, the main thread can still have control
@@ -29,7 +30,7 @@ class HttpWorkerThread;
 // it is restarted.
 class HttpServer {
 public:
-    HttpServer(std::string htdocPath, ushort hostPort = 80, uint maxThread = 25);
+    HttpServer(std::string htdocPath, ushort hostPort = 80);
 private:
     HttpServer(const HttpServer& other);
 public:
@@ -54,6 +55,9 @@ private:
     mutable boost::shared_mutex stateMutex;
     
     boost::scoped_ptr<boost::thread> serverThread;
+    HttpServerThread server;
+    ushort port;
+    std::string root;
 };
 
 }

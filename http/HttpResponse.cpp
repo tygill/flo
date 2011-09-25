@@ -292,54 +292,12 @@ HttpVersion HttpResponse::getVersion() const {
     return version;
 }
 
-std::string HttpResponse::getStatusText() const {
-    switch (status) {
-    case 200:
-        return "OK";
-    break;
-    case 301:
-        return "Moved Permanently";
-    break;
-    case 302:
-        return "Found";
-    break;
-    case 303:
-        return "See Other";
-    break;
-    case 304:
-        return "Not Modified";
-    break;
-    case 307:
-        return "Temporary Redirect";
-    break;
-    case 400:
-        return "Bad Request";
-    break;
-    case 401:
-        return "Unauthorized";
-    break;
-    case 403:
-        return "Forbidden";
-    break;
-    case 404:
-        return "Not Found";
-    break;
-    case 418:
-        return "I'm a teapot";
-    break;
-    case 500:
-        return "Internal Server Error";
-    break;
-    case 501:
-        return "Not Implemented";
-    break;
-    case 503:
-        return "Service Unavailable";
-    break;
-    default:
-        return "Unknown";
-    break;
-    }
+void HttpResponse::setStatusCode(int code) {
+    status = code;
+}
+
+int HttpResponse::getStatusCode() const {
+    return status;
 }
 
 bool HttpResponse::hasHeader(const std::string& field) const {
@@ -364,6 +322,9 @@ const std::map<std::string, std::string>& HttpResponse::getHeaders() const {
 
 void HttpResponse::setContent(const std::string& cont) {
     content = cont;
+    std::stringstream len;
+    len << content.size();
+    addHeader("Content-Length", len.str());
 }
 
 std::string HttpResponse::getContent() const {
@@ -377,7 +338,7 @@ std::string HttpResponse::toString() const {
     code << status;
     ret.append(code.str());
     ret.push_back(' ');
-    ret.append(getStatusText());
+    ret.append(statusCodeToString(status));
     ret.append("\r\n");
     for (std::map<std::string, std::string>::const_iterator itr = header.begin(); itr != header.end(); itr++) {
         ret.append(itr->first);
@@ -386,6 +347,7 @@ std::string HttpResponse::toString() const {
         ret.append("\r\n");
     }
     ret.append("\r\n");
+    ret.append(content);
     return ret;
 }
 

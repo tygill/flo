@@ -33,8 +33,6 @@ public:
     void setStatusCode(int code);
     int getStatusCode() const;
     
-    std::string getStatusText() const;
-    
     // Header manipulation functions
     bool hasHeader(const std::string& field) const;
     void addHeader(const std::string& field, const std::string& value);
