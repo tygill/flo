@@ -164,15 +164,15 @@ int error;
 */
 
 HttpResponse::HttpResponse() :
-    version(HTTP_1_1),
-    status(200)
+    version(HTTP_UNKNOWN_VERSION),
+    status(400)
 {
     // Don't need to build anything else
 }
 
 HttpResponse::HttpResponse(HttpTokenizer& tokenizer) :
-    version(HTTP_1_1),
-    status(200)
+    version(HTTP_UNKNOWN_VERSION),
+    status(400)
 {
     // Initialize via tokenizer
     bool advanceTokenizer = true;
@@ -333,19 +333,25 @@ std::string HttpResponse::getContent() const {
 
 std::string HttpResponse::toString() const {
     std::string ret = versionToString(version);
-    ret.push_back(' ');
     std::ostringstream code;
     code << status;
+    // Reserve the space until the for loop
+    ret.reserve(ret.size() + 1 + code.str().size() + 1 + statusCodeToString(status).size() + 2);
+    ret.push_back(' ');
     ret.append(code.str());
     ret.push_back(' ');
     ret.append(statusCodeToString(status));
     ret.append("\r\n");
     for (std::map<std::string, std::string>::const_iterator itr = header.begin(); itr != header.end(); itr++) {
+        // Reserve this loops return string
+        ret.reserve(itr->first.size() + 2 + itr->second.size() + 2);
         ret.append(itr->first);
         ret.append(": ");
         ret.append(itr->second);
         ret.append("\r\n");
     }
+    // Reserve the last bit of space
+    ret.reserve(2 + content.size());
     ret.append("\r\n");
     ret.append(content);
     return ret;

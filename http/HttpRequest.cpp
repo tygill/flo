@@ -15,17 +15,17 @@
 namespace http {
 
 HttpRequest::HttpRequest() :
-    type(HTTP_GET),
+    type(HTTP_UNKNOWN_REQUEST),
     uri("/"),
-    version(HTTP_1_1)
+    version(HTTP_UNKNOWN_VERSION)
 {
     // Nothing else to construct
 }
 
 HttpRequest::HttpRequest(HttpTokenizer& tokenizer) :
-    type(HTTP_GET),
+    type(HTTP_UNKNOWN_REQUEST),
     uri("/"),
-    version(HTTP_1_1)
+    version(HTTP_UNKNOWN_VERSION)
 {
     // Initialize via tokenizer
     bool advanceTokenizer = true;
@@ -174,12 +174,16 @@ const std::map<std::string, std::string>& HttpRequest::getHeaders() const {
 
 std::string HttpRequest::toString() const {
     std::string ret = requestTypeToString(type);
+    // Reserve the first bit
+    ret.reserve(ret.size() + 1 + getUri().size() + 1 + versionToString(version).size() + 2);
     ret.push_back(' ');
     ret.append(getUri());
     ret.push_back(' ');
     ret.append(versionToString(version));
     ret.append("\r\n");
     for (std::map<std::string, std::string>::const_iterator itr = header.begin(); itr != header.end(); itr++) {
+        // Reserve this loop's length
+        ret.reserve(itr->first.size() + 2 + itr->second.size() + 2);
         ret.append(itr->first);
         ret.append(": ");
         ret.append(itr->second);
