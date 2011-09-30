@@ -1,23 +1,11 @@
 Planning and design for flo, the simple web server for CS 360.
 
-Server architecture
- Use boost::thread for connections
- Use boost::mutex to guard the std::queue
- Use std::queue to queue up the sockets to serve
+The purpose of this little server is to implement a simple subset of the HTTP protocol, specifically for CS 360 at BYU. As such, the code quality is not quite perfect, as much of it is not planned on being used for other purposes once the class is done. For this reason, rather than use char* to store socket data, the slightly less runtime efficient std::string class is used instead, because its more readable and easier to code. Additionally, there are liberal uses of the std::string::append() function, rather than using some sort of string builder class. Again, I admit these, but the purposes of the project lead me to build it this way.
 
-
-Pseudocode
- Setup threadpool
-  Each thread is created with a HttpServer object
-   HttpServer is a callable object, which, when called reads the queue, and initiates new connections when needed.
-   HttpServer() {
-    while (!quit) {
-     int sock;
-     //thread-queue.get() returns -1 on empty
-     // This way, we don't need to do a separate mutex out here to make sure nothing changes between empty()? and get()
-     while ((sock = thread-queue.get()) == -1) {
-      usleep(15); // Some number based on the number of threads to run.
-     }
-     // read from sock, process thread
-    }
-   }
+To compile under linux (Windows would require some compatability headers that I haven't looked for yet), create a new directory and from within it, use the command:
+cmake ..
+where .. is the path from the new directory to the root directory of flo. Then simply use the
+make
+and
+./flo
+commands to make and start flo respectively. It runs on port 10042, and should be accessable by most modern browsers.

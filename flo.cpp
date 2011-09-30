@@ -13,7 +13,7 @@
 #include "http/HttpServer.h"
 
 int main(int argc, char* argv[]) {
-    http::HttpServer server("www", 8888);
+    http::HttpServer server("www", 10042);
     if (server.start()) {
         while (true) {
             sleep(1);
