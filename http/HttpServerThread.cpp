@@ -12,7 +12,7 @@ namespace http {
 HttpServerThread::HttpServerThread(HttpServer* serv) :
     server(serv),
     serverSocket(-1),
-    maxThreadCount(MAX_THREAD_COUNT),
+    maxThreadCount(MAX_THREAD_COUNT * boost::thread::hardware_concurrency()),
     isValid(false)
 {
     
