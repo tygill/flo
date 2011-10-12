@@ -5,7 +5,7 @@
 #include <cstdlib>
 
 #define SOCKET_ERROR -1
-#define MAX_THREAD_COUNT 25
+#define MAX_THREAD_COUNT 50
 #define THREAD_TIMEOUT 5
 
 namespace http {
