@@ -17,7 +17,7 @@ HttpTokenizer::HttpTokenizer(int socketHandle) :
     sock(socketHandle),
     currTokenType(EndOfFile),
     headerComplete(false),
-    contentReserveSize(0)
+    contentReserveSize(-1)
 {
     next(true);
 }
@@ -56,6 +56,7 @@ void HttpTokenizer::setContentReserveSize(int size) {
 void HttpTokenizer::next(bool firstTime) {
     unsigned char current = '\0';
     int readLen = 0;
+    int readTotal = 0;
     if (!firstTime) {
         switch (currTokenType) {
         case HttpStatus:
@@ -120,8 +121,12 @@ void HttpTokenizer::next(bool firstTime) {
         break;
         case HeaderComplete:
             // Everything else we can read is the content
-            while ((readLen = read(sock, &current, 1)) > 0) {
+            if (contentReserveSize >= 0) {
+                buffer.reserve(contentReserveSize);
+            }
+            while ((contentReserveSize >= 0 ? readTotal < contentReserveSize : true) && (readLen = read(sock, &current, 1)) > 0) {
                 buffer.push_back(current);
+                readTotal += readLen;
             }
             if (readLen >= 0) {
                 // If there's something in the buffer, we have content. Otherwise,
@@ -159,7 +164,6 @@ void HttpTokenizer::next(bool firstTime) {
         // the whitespace
         // We don't need to worry about scanning the previously loaded buffer
         // for \n
-        buffer.reserve(contentReserveSize);
         while (current != '\n' && (readLen = read(sock, &current, 1)) > 0) {
             buffer.push_back(current);
         }

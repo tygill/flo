@@ -15,6 +15,7 @@ class HttpWorkerThread {
 public:
     HttpWorkerThread(HttpServerThread* server);
     ~HttpWorkerThread();
+    
     void operator()();
     // Checks server->active() to decide whether or not to stay alive.
     // Things are locked in this manner:
@@ -36,7 +37,7 @@ private:
     // Services a request
     // First, it determines the type of request (GET, POST, etc.), and
     // fails silently if the request type is unsupported.
-    boost::shared_ptr<HttpResponse> service(const HttpRequest* request) const;
+    boost::shared_ptr<HttpResponse> service(HttpRequest* request) const;
     
     // Handles GET requests
     // There are two types of requests that might be made - getting a
@@ -44,13 +45,13 @@ private:
     // a directory and building an html page listing for it.
     // The content type will be looked up from another function here
     // as well.
-    boost::shared_ptr<HttpResponse> get(const HttpRequest* request) const;
+    boost::shared_ptr<HttpResponse> get(HttpRequest* request) const;
     
     // GETs a specific file
-    boost::shared_ptr<HttpResponse> getFile(const std::string& uri) const;
+    boost::shared_ptr<HttpResponse> getFile(const std::string& uri, HttpRequest* request) const;
     
     // GETs a directory listing
-    boost::shared_ptr<HttpResponse> getDirectory(const std::string& uri) const;
+    boost::shared_ptr<HttpResponse> getDirectory(const std::string& uri, HttpRequest* request) const;
     
     // Returns an error response (possibly loading an error file?)
     boost::shared_ptr<HttpResponse> error(int statusCode) const;

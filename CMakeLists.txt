@@ -19,6 +19,11 @@ set(webserver_cpp
     "http/HttpRequest.cpp"
     "http/HttpWorkerThread.cpp"
     "http/HttpServerThread.cpp"
+    "http/HttpBufferedContent.cpp"
+    "http/HttpBufferedFile.cpp"
+    "http/HttpBufferedDirectory.cpp"
+    "http/HttpBufferedString.cpp"
+    "http/HttpBufferedCgi.cpp"
 )
 
 find_package(Boost REQUIRED COMPONENTS thread)

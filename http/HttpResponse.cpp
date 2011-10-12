@@ -1,4 +1,6 @@
 ﻿#include "http/HttpResponse.h"
+#include "http/HttpBufferedContent.h"
+#include "http/HttpBufferedString.h"
 
 #include <sstream>
 #include <iostream>
@@ -165,14 +167,18 @@ int error;
 
 HttpResponse::HttpResponse() :
     version(HTTP_UNKNOWN_VERSION),
-    status(400)
+    status(400),
+    prefixIndex(0),
+    contentStarted(false)
 {
     // Don't need to build anything else
 }
 
 HttpResponse::HttpResponse(HttpTokenizer& tokenizer) :
     version(HTTP_UNKNOWN_VERSION),
-    status(400)
+    status(400),
+    prefixIndex(0),
+    contentStarted(false)
 {
     // Initialize via tokenizer
     bool advanceTokenizer = true;
@@ -225,7 +231,10 @@ HttpResponse::HttpResponse(HttpTokenizer& tokenizer) :
         break;
         case HttpTokenizer::Content:
             // We should never get multiple contents back from a single tokenizer
-            setContent(tokenizer.tokenValue());
+            {
+                boost::shared_ptr<HttpBufferedContent> content(new HttpBufferedString(tokenizer.tokenValue()));
+                setContent(content);
+            }
             //std::cout << "Content:" << std::endl;
             //std::cout << "Length: " << tokenizer.tokenValue().length() << std::endl;
             //std::cout << tokenizer.tokenValue() << std::endl;
@@ -250,16 +259,6 @@ HttpResponse::HttpResponse(HttpTokenizer& tokenizer) :
 HttpResponse::~HttpResponse() {
     // Nothing to destroy
 }
-
-/*
-void HttpResponse::setRequest(boost::shared_ptr<HttpRequest> req) {
-    requst = ret;
-}
-
-boost::shared_ptr<HttpRequest> HttpResponse::getRequest() const {
-    return request;
-}
-*/
 
 void HttpResponse::setStatus(const std::string& stat) {
     // Extract the status information from the status line
@@ -320,41 +319,69 @@ const std::map<std::string, std::string>& HttpResponse::getHeaders() const {
     return header;
 }
 
-void HttpResponse::setContent(const std::string& cont) {
+void HttpResponse::setContent(boost::shared_ptr<HttpBufferedContent> cont) {
     content = cont;
-    std::stringstream len;
-    len << content.size();
-    addHeader("Content-Length", len.str());
 }
 
-std::string HttpResponse::getContent() const {
-    return content;
-}
-
-std::string HttpResponse::toString() const {
-    std::string ret = versionToString(version);
-    std::ostringstream code;
+void HttpResponse::resetStream() {
+    prefixIndex = 0;
+    contentStarted = false;
+    std::stringstream code;
     code << status;
-    // Reserve the space until the for loop
-    ret.reserve(ret.size() + 1 + code.str().size() + 1 + statusCodeToString(status).size() + 2);
-    ret.push_back(' ');
-    ret.append(code.str());
-    ret.push_back(' ');
-    ret.append(statusCodeToString(status));
-    ret.append("\r\n");
+    
+    // Build the prefix to the content
+    // Should include server headers, but should not end the header
+    prefix.reserve(versionToString(version).size() + 1 + code.str().size() + 1 + statusCodeToString(status).size() + 2);
+    prefix = versionToString(version);
+    prefix.push_back(' ');
+    prefix.append(code.str());
+    prefix.push_back(' ');
+    prefix.append(statusCodeToString(status));
+    prefix.append("\r\n");
     for (std::map<std::string, std::string>::const_iterator itr = header.begin(); itr != header.end(); itr++) {
-        // Reserve this loops return string
-        ret.reserve(itr->first.size() + 2 + itr->second.size() + 2);
-        ret.append(itr->first);
-        ret.append(": ");
-        ret.append(itr->second);
-        ret.append("\r\n");
+        if (itr->first.compare("Content-Length") != 0) {
+            // Reserve this loops return string
+            prefix.reserve(prefix.size() + itr->first.size() + 2 + itr->second.size() + 2);
+            prefix.append(itr->first);
+            prefix.append(": ");
+            prefix.append(itr->second);
+            prefix.append("\r\n");
+        }
     }
-    // Reserve the last bit of space
-    ret.reserve(2 + content.size());
-    ret.append("\r\n");
-    ret.append(content);
-    return ret;
+    
+    if (content) {
+        content->resetStream();
+    }
+}
+
+bool HttpResponse::streamComplete() const {
+    if (prefixIndex >= prefix.size()) {
+        if (content) {
+            return content->streamComplete();
+        } else {
+            return contentStarted;
+        }
+    } else {
+        return false;
+    }
+}
+
+std::string HttpResponse::readStream(int size) {
+    if (prefixIndex >= prefix.size()) {
+        contentStarted = true;
+        if (content) {
+            return content->readStream(size);
+        } else {
+            return "\r\n";
+        }
+    } else {
+        // Make sure reset has been called at least once to initialize the string
+        resetStream();
+        std::string ret;
+        ret = prefix.substr(prefixIndex, size);
+        prefixIndex += ret.size();
+        return ret;
+    }
 }
 
 }

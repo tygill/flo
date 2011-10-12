@@ -22,6 +22,9 @@ std::string requestTypeToString(HttpRequestType type) {
     case HTTP_GET:
         return "GET";
     break;
+    case HTTP_POST:
+        return "POST";
+    break;
     case HTTP_UNKNOWN_REQUEST:
     default:
         return "UNKNOWN";

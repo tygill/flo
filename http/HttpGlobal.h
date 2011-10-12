@@ -20,6 +20,7 @@ std::string versionToString(HttpVersion version);
 
 enum HttpRequestType {
     HTTP_GET,
+    HTTP_POST,
     HTTP_UNKNOWN_REQUEST
 };
 

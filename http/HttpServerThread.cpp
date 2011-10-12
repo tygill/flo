@@ -54,6 +54,7 @@ void HttpServerThread::initialize() {
     // Set the timeout
     setsockopt(serverSocket, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
     setsockopt(serverSocket, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout));
+    setsockopt(serverSocket, SOL_SOCKET, SO_REUSEADDR, NULL, sizeof(int));
     
     // Setup the address
     address.sin_addr.s_addr = INADDR_ANY;

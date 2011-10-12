@@ -1,7 +1,10 @@
 ﻿#include "http/HttpRequest.h"
 #include "http/HttpGlobal.h"
+#include "http/HttpBufferedString.h"
 
+#include <sstream>
 #include <string>
+#include <stdexcept>
 #include <iostream>
 #include <cstdio>
 #include <cctype>
@@ -17,7 +20,9 @@ namespace http {
 HttpRequest::HttpRequest() :
     type(HTTP_UNKNOWN_REQUEST),
     uri("/"),
-    version(HTTP_UNKNOWN_VERSION)
+    version(HTTP_UNKNOWN_VERSION),
+    prefixIndex(0),
+    contentStarted(false)
 {
     // Nothing else to construct
 }
@@ -25,10 +30,12 @@ HttpRequest::HttpRequest() :
 HttpRequest::HttpRequest(HttpTokenizer& tokenizer) :
     type(HTTP_UNKNOWN_REQUEST),
     uri("/"),
-    version(HTTP_UNKNOWN_VERSION)
+    version(HTTP_UNKNOWN_VERSION),
+    prefixIndex(0),
+    contentStarted(false)
 {
     // Initialize via tokenizer
-    bool advanceTokenizer = true;
+    //bool advanceTokenizer = true;
     while (tokenizer.hasToken()) {
         std::string name;
         switch (tokenizer.tokenType()) {
@@ -60,7 +67,8 @@ HttpRequest::HttpRequest(HttpTokenizer& tokenizer) :
                 // If we could, reset the previous token to undo the
                 // change, but at present that's not possible and probably
                 // not worth it
-                advanceTokenizer = false;
+                //advanceTokenizer = false;
+                continue;
             }
         break;
         case HttpTokenizer::HeaderValue:
@@ -84,10 +92,10 @@ HttpRequest::HttpRequest(HttpTokenizer& tokenizer) :
             return;
         break;
         }
-        if (advanceTokenizer) {
+        //if (advanceTokenizer) {
             tokenizer.next();
-        }
-        advanceTokenizer = true;
+        //}
+        //advanceTokenizer = true;
     }
 }
 
@@ -96,35 +104,41 @@ HttpRequest::~HttpRequest() {
 }
 
 void HttpRequest::setRequest(const std::string& req) {
-    // The request has three parts: type uri version.
-    // This picks out the first part.
-    // Ex:
-    // GET /index.php HTTP/1.0
-    // 01234567890123456789012
-    uint first = req.find(' ');
-    if (first != std::string::npos) {
-        // Parse out the request
-        std::string request = req.substr(0, first);
-        if (request.compare("GET") == 0) {
-            type = HTTP_GET;
-        } else {
-            type = HTTP_UNKNOWN_REQUEST;
-        }
-        uint second = req.find(' ', first+1);
-        if (second != std::string::npos) {
-            // Parse out the uri
-            std::string path = req.substr(first+1, second-first-1);
-            setUri(path);
-            // Parse out the version string
-            std::string ver = req.substr(second+1);
-            if (ver.compare("HTTP/1.1") == 0) {
-                version = HTTP_1_1;
-            } else if (ver.compare("HTTP/1.0") == 0) {
-                version = HTTP_1_0;
+    try {
+        // The request has three parts: type uri version.
+        // This picks out the first part.
+        // Ex:
+        // GET /index.php HTTP/1.0
+        // 01234567890123456789012
+        uint first = req.find(' ');
+        if (first != std::string::npos) {
+            // Parse out the request
+            std::string request = req.substr(0, first);
+            if (request.compare("GET") == 0) {
+                type = HTTP_GET;
+            } else if (request.compare("POST") == 0) {
+                type = HTTP_POST;
             } else {
-                version = HTTP_UNKNOWN_VERSION;
+                type = HTTP_UNKNOWN_REQUEST;
+            }
+            uint second = req.find(' ', first+1);
+            if (second != std::string::npos) {
+                // Parse out the uri
+                std::string path = req.substr(first+1, second-first-1);
+                setUri(path);
+                // Parse out the version string
+                std::string ver = req.substr(second+1);
+                if (ver.compare("HTTP/1.1") == 0) {
+                    version = HTTP_1_1;
+                } else if (ver.compare("HTTP/1.0") == 0) {
+                    version = HTTP_1_0;
+                } else {
+                    version = HTTP_UNKNOWN_VERSION;
+                }
             }
         }
+    } catch (std::out_of_range& e) {
+        std::cout << "Error while parsing HTTP Request line" << std::endl;
     }
 }
 
@@ -137,11 +151,32 @@ HttpRequestType HttpRequest::getType() const {
 }
 
 void HttpRequest::setUri(const std::string& path) {
-    uri = path;
+    size_t queryStart = path.find('?');
+    size_t extStart = path.find_last_of('.', queryStart);
+    if (extStart != std::string::npos) {
+        if (queryStart != std::string::npos) {
+            ext = path.substr(extStart+1, queryStart - extStart - 1);
+        } else {
+            ext = path.substr(extStart+1);
+        }
+    } else {
+        ext = "";
+    }
+    if (queryStart != std::string::npos) {
+        // Break the query section off of the uri
+        uri = path.substr(0, queryStart);
+        setParameters(path.substr(queryStart+1));
+    } else {
+        uri = path;
+    }
 }
 
 std::string HttpRequest::getUri() const {
     return uri;
+}
+
+std::string HttpRequest::getExt() const {
+    return ext;
 }
 
 void HttpRequest::setVersion(HttpVersion ver) {
@@ -160,6 +195,10 @@ void HttpRequest::addHeader(const std::string& field, const std::string& value) 
     header.insert(std::pair<std::string, std::string>(field, value));
 }
 
+void HttpRequest::removeHeader(const std::string& field) {
+    header.erase(field);
+}
+
 std::string HttpRequest::getHeader(const std::string& field) const {
     if (hasHeader(field)) {
         return header.find(field)->second;
@@ -172,25 +211,129 @@ const std::map<std::string, std::string>& HttpRequest::getHeaders() const {
     return header;
 }
 
-std::string HttpRequest::toString() const {
-    std::string ret = requestTypeToString(type);
-    // Reserve the first bit
-    ret.reserve(ret.size() + 1 + getUri().size() + 1 + versionToString(version).size() + 2);
-    ret.push_back(' ');
-    ret.append(getUri());
-    ret.push_back(' ');
-    ret.append(versionToString(version));
-    ret.append("\r\n");
-    for (std::map<std::string, std::string>::const_iterator itr = header.begin(); itr != header.end(); itr++) {
-        // Reserve this loop's length
-        ret.reserve(itr->first.size() + 2 + itr->second.size() + 2);
-        ret.append(itr->first);
-        ret.append(": ");
-        ret.append(itr->second);
-        ret.append("\r\n");
+void HttpRequest::setParameters(const std::string& params) {
+    unsigned int start = 0;
+    unsigned int end = 0;
+    while (start < params.size()) {
+        // Ex: p1=v1&p2=v2&p3=v3
+        // Search for a parameter name
+        std::string param;
+        while (end < params.size() && params.at(end) != '=') {
+            end++;
+        }
+        param = params.substr(start, end-start);
+        
+        // Search for a parameter value
+        std::string value;
+        if (end < params.size()) {
+            end++;
+            start = end;
+            while (end < params.size() && params.at(end) != '&') {
+                end++;
+            }
+            value = params.substr(start, end-start);
+            parameters.insert(std::pair<std::string, std::string>(param, value));
+        }
+        end++;
+        start = end;
     }
-    ret.append("\r\n");
+}
+
+std::string HttpRequest::getParameterString() const {
+    std::string ret;
+    for (std::map<std::string, std::string>::const_iterator itr = parameters.begin(); itr != parameters.end(); itr++) {
+        if (itr != parameters.begin()) {
+            ret.push_back('&');
+        }
+        ret.append(itr->first);
+        ret.push_back('=');
+        ret.append(itr->second);
+    }
     return ret;
+}
+
+bool HttpRequest::hasParameter(const std::string& param) const {
+    return parameters.find(param) == parameters.end();
+}
+
+void HttpRequest::addParameter(const std::string& param, const std::string& value) {
+    parameters.insert(std::pair<std::string, std::string>(param, value));
+}
+
+std::string HttpRequest::getParameter(const std::string& param) const {
+    if (hasParameter(param)) {
+        return parameters.find(param)->second;
+    } else {
+        return "";
+    }
+}
+
+const std::map<std::string, std::string>& HttpRequest::getParameters() const {
+    return parameters;
+}
+
+//void HttpRequest::setContent(boost::shared_ptr<HttpBufferedContent> cont) {
+//    content = cont;
+//}
+
+void HttpRequest::resetStream() {
+    prefixIndex = 0;
+    contentStarted = false;
+    prefix = requestTypeToString(type);
+    std::string params(getParameterString()); // Cache the param string
+    // Reserve the first bit
+    prefix.reserve(prefix.size() + 1 + getUri().size() + (type == HTTP_GET ? 1 + params.size() : 0) + 1 + versionToString(version).size() + 2);
+    prefix.push_back(' ');
+    prefix.append(getUri());
+    if (type == HTTP_GET) {
+        prefix.push_back('?');
+        prefix.append(params);
+    }
+    prefix.push_back(' ');
+    prefix.append(versionToString(version));
+    prefix.append("\r\n");
+    for (std::map<std::string, std::string>::const_iterator itr = header.begin(); itr != header.end(); itr++) {
+        if (itr->first.compare("Content-Length") != 0) {
+            // Reserve this loop's length
+            prefix.reserve(prefix.size() + itr->first.size() + 2 + itr->second.size() + 2);
+            prefix.append(itr->first);
+            prefix.append(": ");
+            prefix.append(itr->second);
+            prefix.append("\r\n");
+        }
+    }
+    boost::shared_ptr<HttpBufferedContent> cont(new HttpBufferedString(getParameterString()));
+    content.swap(cont);
+}
+
+bool HttpRequest::streamComplete() const {
+    if (prefixIndex >= prefix.size()) {
+        if (content) {
+            return content->streamComplete();
+        } else {
+            return contentStarted;
+        }
+    } else {
+        return false;
+    }
+}
+
+std::string HttpRequest::readStream(int size) {
+    if (prefixIndex >= prefix.size()) {
+        contentStarted = true;
+        if (content) {
+            return content->readStream(size);
+        } else {
+            return "\r\n";
+        }
+    } else {
+        // Make sure reset has been called at least once to initialize the string
+        resetStream();
+        std::string ret;
+        ret = prefix.substr(prefixIndex, size);
+        prefixIndex += ret.size();
+        return ret;
+    }
 }
 
 }
