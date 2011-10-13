@@ -259,14 +259,16 @@ boost::shared_ptr<HttpResponse> HttpWorkerThread::getDirectory(const std::string
     if (access(html.c_str(), F_OK) == 0) {
         std::string htmlUri(cleanUri);
         htmlUri.append("index.html");
-        return getFile(htmlUri, request);
+        request->setUri(htmlUri);
+        return get(request);
     }
     std::string php(path);
     php.append("index.php");
     if (access(php.c_str(), F_OK) == 0) {
         std::string phpUri(cleanUri);
         phpUri.append("index.php");
-        return getFile(phpUri, request);
+        request->setUri(phpUri);
+        return get(request);
     }
     
     boost::shared_ptr<HttpBufferedDirectory> content(new HttpBufferedDirectory(path, cleanUri));
